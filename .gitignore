@@ -1,0 +1,6 @@
+*.exe
+gatorcli
+main
+/vendor/
+/.DS_Store
+*.test
