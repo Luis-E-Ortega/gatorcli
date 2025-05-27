@@ -17,6 +17,9 @@ func Read() (Config, error) {
 
 	// Run helper function to get Config file path
 	gatorDir, err := getConfigFilePath()
+	if err != nil {
+		return config, err
+	}
 
 	// Read data from file given the full path
 	data, err := os.ReadFile(gatorDir)
