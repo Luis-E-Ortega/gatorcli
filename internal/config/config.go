@@ -73,7 +73,3 @@ func (c *Config) SetUser(username string) error {
 	}
 	return nil
 }
-
-func main() {
-
-}
