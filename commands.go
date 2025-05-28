@@ -37,6 +37,12 @@ func handlersLogin(s *state, cmd command) error {
 }
 
 func (c *commands) run(s *state, cmd command) error {
+	if inputCommand, ok := c.allCommands[cmd.name]; ok {
+		err := inputCommand(s, cmd)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
