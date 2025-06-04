@@ -1,10 +1,13 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
+	"github.com/Luis-E-Ortega/gatorcli/internal/database"
+	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -15,7 +18,24 @@ func main() {
 	}
 
 	stateStruct := state{}
-	stateStruct.config = &data
+	stateStruct.cfg = &data
+
+	db, err := sql.Open("postgres", data.DbUrl)
+	if err != nil {
+		fmt.Println("Error opening database channel")
+		os.Exit(1)
+	}
+	err = db.Ping()
+	if err != nil {
+		fmt.Printf("Error caused by failed ping: %v", err)
+		os.Exit(1)
+	}
+	dbQueries := database.New(db)
+	stateStruct.db = dbQueries
+	if stateStruct.db == nil {
+		fmt.Println("Error caused by database having a nil pointer")
+		os.Exit(1)
+	}
 
 	cmds := commands{
 		allCommands: make(map[string]func(*state, command) error),

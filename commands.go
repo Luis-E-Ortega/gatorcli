@@ -5,10 +5,12 @@ import (
 	"fmt"
 
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
+	"github.com/Luis-E-Ortega/gatorcli/internal/database"
 )
 
 type state struct {
-	config *config.Config
+	db  *database.Queries
+	cfg *config.Config
 }
 
 type command struct {
@@ -27,7 +29,7 @@ func handlersLogin(s *state, cmd command) error {
 		return err
 	}
 
-	err := s.config.SetUser(cmd.arguments[0])
+	err := s.cfg.SetUser(cmd.arguments[0])
 	if err != nil {
 		return err
 	}
