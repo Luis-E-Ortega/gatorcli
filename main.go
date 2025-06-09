@@ -17,8 +17,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	stateStruct := state{}
-	stateStruct.cfg = &data
+	currentState := state{}
+	currentState.cfg = &data
 
 	db, err := sql.Open("postgres", data.DbUrl)
 	if err != nil {
@@ -30,9 +30,10 @@ func main() {
 		fmt.Printf("Error caused by failed ping: %v", err)
 		os.Exit(1)
 	}
+
 	dbQueries := database.New(db)
-	stateStruct.db = dbQueries
-	if stateStruct.db == nil {
+	currentState.db = dbQueries
+	if currentState.db == nil {
 		fmt.Println("Error caused by database having a nil pointer")
 		os.Exit(1)
 	}
@@ -41,7 +42,7 @@ func main() {
 		allCommands: make(map[string]func(*state, command) error),
 	}
 
-	cmds.register("login", handlersLogin)
+	cmds.register("login", handlerLogin)
 
 	userInput := os.Args
 	if len(userInput) < 2 {
@@ -57,7 +58,7 @@ func main() {
 		arguments: cmdArgs,
 	}
 
-	err = cmds.run(&stateStruct, cmd)
+	err = cmds.run(&currentState, cmd)
 	if err != nil {
 		fmt.Printf("Error running command: %v", err)
 		os.Exit(1)
