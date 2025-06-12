@@ -72,6 +72,7 @@ func main() {
 	}
 }
 
+// Moved to here from commands because it was not working there
 func handlerRegister(s *state, cmd command) error {
 	fmt.Println("--- Inside handlerRegister ---")
 	// Check to ensure name isn't empty
