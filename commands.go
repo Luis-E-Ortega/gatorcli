@@ -2,16 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"os"
-	"time"
 
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
 	"github.com/Luis-E-Ortega/gatorcli/internal/database"
-	"github.com/google/uuid"
-	"github.com/lib/pq"
 )
 
 type state struct {
@@ -35,7 +32,14 @@ func handlerLogin(s *state, cmd command) error {
 		return err
 	}
 
-	err := s.cfg.SetUser(cmd.arguments[0])
+	// Get user and check error to make sure a user exists before allowing login
+	_, err := s.db.GetUser(context.Background(), cmd.arguments[0])
+	if err == sql.ErrNoRows {
+		fmt.Printf("Username does not exist!\n")
+		os.Exit(1)
+	}
+
+	err = s.cfg.SetUser(cmd.arguments[0])
 	if err != nil {
 		return err
 	}
@@ -48,6 +52,7 @@ func (c *commands) run(s *state, cmd command) error {
 	if inputCommand, ok := c.allCommands[cmd.name]; ok {
 		err := inputCommand(s, cmd)
 		if err != nil {
+			fmt.Printf("Error running run method: %v", err)
 			return err
 		}
 	}
@@ -56,32 +61,4 @@ func (c *commands) run(s *state, cmd command) error {
 
 func (c *commands) register(name string, f func(*state, command) error) {
 	c.allCommands[name] = f
-}
-
-func handlerRegister(s *state, cmd command) error {
-	// Check to ensure name isn't empty
-	if len(cmd.arguments) < 1 {
-		return errors.New("name required")
-	}
-
-	params := database.CreateUserParams{}
-	params.Name = cmd.arguments[0]
-	params.ID = uuid.New()
-	params.CreatedAt = time.Now()
-	params.UpdatedAt = time.Now()
-
-	user, err := s.db.CreateUser(context.Background(), params)
-	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
-			os.Exit(1)
-		}
-
-		return err
-	}
-
-	s.cfg.CurrentUserName = user.Name
-	fmt.Println("New user created!")
-	log.Printf("New user logged: %+v", user)
-
-	return nil
 }
