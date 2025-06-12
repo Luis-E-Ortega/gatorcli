@@ -62,3 +62,13 @@ func (c *commands) run(s *state, cmd command) error {
 func (c *commands) register(name string, f func(*state, command) error) {
 	c.allCommands[name] = f
 }
+
+func (c *commands) reset(s *state, cmd command) error {
+	err := s.db.ResetTables(context.Background())
+	if err != nil {
+		fmt.Println("Error resetting table")
+		return err
+	}
+	fmt.Println("Reset successful!")
+	return nil
+}

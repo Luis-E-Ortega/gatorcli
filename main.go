@@ -50,6 +50,7 @@ func main() {
 
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
+	cmds.register("reset", cmds.reset)
 
 	userInput := os.Args
 	if len(userInput) < 2 {
@@ -74,7 +75,6 @@ func main() {
 
 // Moved to here from commands because it was not working there
 func handlerRegister(s *state, cmd command) error {
-	fmt.Println("--- Inside handlerRegister ---")
 	// Check to ensure name isn't empty
 	if len(cmd.arguments) < 1 {
 		return errors.New("name required")
@@ -95,7 +95,7 @@ func handlerRegister(s *state, cmd command) error {
 		return err
 	}
 
-	s.cfg.CurrentUserName = user.Name
+	s.cfg.SetUser(user.Name)
 	fmt.Println("New user created!")
 	log.Printf("New user logged: %+v", user)
 
