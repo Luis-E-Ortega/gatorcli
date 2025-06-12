@@ -72,3 +72,19 @@ func (c *commands) reset(s *state, cmd command) error {
 	fmt.Println("Reset successful!")
 	return nil
 }
+
+func (c *commands) users(s *state, cmd command) error {
+	usersList, err := s.db.GetUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, user := range usersList {
+		if user == s.cfg.CurrentUserName {
+			fmt.Printf("*%s (current)\n", user)
+		} else {
+			fmt.Println("*" + user)
+		}
+	}
+	return nil
+}
