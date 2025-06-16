@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -15,6 +19,22 @@ import (
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
+
+type RSSFeed struct {
+	Channel struct {
+		Title       string    `xml:"title"`
+		Link        string    `xml:"link"`
+		Description string    `xml:"description"`
+		Item        []RSSItem `xml:"item"`
+	} `xml:"channel"`
+}
+
+type RSSItem struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description string `xml:"description"`
+	PubDate     string `xml:"pubDate"`
+}
 
 func main() {
 	data, err := config.Read()
@@ -101,4 +121,45 @@ func handlerRegister(s *state, cmd command) error {
 	log.Printf("New user logged: %+v", user)
 
 	return nil
+}
+
+func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
+	rssFeed := RSSFeed{}
+
+	// Make a request using this method for more control to set headers
+	newReq, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	// Set the specific header to our project name
+	newReq.Header.Set("User-Agent", "gatorcli")
+
+	// Create client
+	client := http.Client{}
+
+	resp, err := client.Do(newReq)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = xml.Unmarshal(body, &rssFeed)
+	if err != nil {
+		return nil, err
+	}
+
+	rssFeed.Channel.Title = html.UnescapeString(rssFeed.Channel.Title)
+	rssFeed.Channel.Description = html.UnescapeString(rssFeed.Channel.Description)
+
+	for i := range rssFeed.Channel.Item {
+		rssFeed.Channel.Item[i].Title = html.UnescapeString(rssFeed.Channel.Item[i].Title)
+		rssFeed.Channel.Item[i].Description = html.UnescapeString(rssFeed.Channel.Item[i].Description)
+	}
+
+	return &rssFeed, nil
 }
