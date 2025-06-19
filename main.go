@@ -37,6 +37,7 @@ type RSSItem struct {
 }
 
 func main() {
+	// Read file and save to variable
 	data, err := config.Read()
 	if err != nil {
 		fmt.Println("Error reading file")
@@ -46,12 +47,13 @@ func main() {
 	currentState := state{}
 	currentState.cfg = &data
 
+	// Open the channel to the database
 	db, err := sql.Open("postgres", data.DbUrl)
 	if err != nil {
 		fmt.Println("Error opening database channel")
 		os.Exit(1)
 	}
-	err = db.Ping()
+	err = db.Ping() // Ping check to ensure connection is active
 	if err != nil {
 		fmt.Printf("Error caused by failed ping: %v", err)
 		os.Exit(1)
@@ -72,6 +74,8 @@ func main() {
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", cmds.reset)
 	cmds.register("users", cmds.users)
+	cmds.register("agg", cmds.agg)
+	cmds.register("addfeed", handlerAddfeed)
 
 	userInput := os.Args
 	if len(userInput) < 2 {
@@ -132,7 +136,7 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 		return nil, err
 	}
 	// Set the specific header to our project name
-	newReq.Header.Set("User-Agent", "gatorcli")
+	newReq.Header.Set("User-Agent", "gator")
 
 	// Create client
 	client := http.Client{}

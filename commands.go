@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
 	"github.com/Luis-E-Ortega/gatorcli/internal/database"
+	"github.com/google/uuid"
 )
 
 type state struct {
@@ -86,5 +89,58 @@ func (c *commands) users(s *state, cmd command) error {
 			fmt.Println("*" + user)
 		}
 	}
+	return nil
+}
+
+func (c *commands) agg(s *state, cmd command) error {
+	rssFeed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if err != nil {
+		return err
+	}
+
+	data, _ := json.MarshalIndent(rssFeed, "", " ")
+	fmt.Println(string(data))
+
+	return nil
+}
+
+func handlerAddfeed(s *state, cmd command) error {
+	// First check to ensure arguments isn't empty
+	if len(cmd.arguments) < 2 {
+		err := errors.New("name and url required")
+		return err
+	}
+
+	// Get user input to fill out name and url for the feed
+	userInput := cmd.arguments
+	feedName := userInput[0]
+	feedUrl := userInput[1]
+
+	// Retrieve current user and ensure they are registered/logged in
+	currentUser := s.cfg.CurrentUserName
+
+	user, err := s.db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return err
+	}
+
+	userId := user.ID
+
+	feed, err := s.db.CreateFeed(
+		context.Background(),
+		database.CreateFeedParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Name:      feedName,
+			Url:       feedUrl,
+			UserID:    userId,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	fmt.Println(feed)
+
 	return nil
 }
