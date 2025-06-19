@@ -76,6 +76,7 @@ func main() {
 	cmds.register("users", cmds.users)
 	cmds.register("agg", cmds.agg)
 	cmds.register("addfeed", handlerAddfeed)
+	cmds.register("feeds", cmds.feeds)
 
 	userInput := os.Args
 	if len(userInput) < 2 {

@@ -104,6 +104,21 @@ func (c *commands) agg(s *state, cmd command) error {
 	return nil
 }
 
+func (c *commands) feeds(s *state, cmd command) error {
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		fmt.Println("error occured while trying to pull feeds")
+		return err
+	}
+
+	if len(feeds) != 0 {
+		for _, row := range feeds {
+			fmt.Printf("Feed Information: \n Name: %v\n URL: %v\n Username: %v", row.Name, row.Url, row.Username)
+		}
+	}
+	return nil
+}
+
 func handlerAddfeed(s *state, cmd command) error {
 	// First check to ensure arguments isn't empty
 	if len(cmd.arguments) < 2 {
