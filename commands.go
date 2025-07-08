@@ -159,3 +159,39 @@ func handlerAddfeed(s *state, cmd command) error {
 
 	return nil
 }
+
+func (c *command) follow(s *state, cmd command) error {
+	url := cmd.arguments[1]
+	currentUser := s.cfg.CurrentUserName
+	user, err := s.db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return err
+	}
+
+	feed, err := s.db.GetFeedByURL(context.Background(), url)
+	if err != nil {
+		return err
+	}
+
+	feedsFollowRow, err := s.db.CreateFeedFollow(
+		context.Background(),
+		database.CreateFeedFollowParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			UserID:    user.ID,
+			FeedID:    feed.ID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	if len(feedsFollowRow) == 0 {
+		return errors.New("failed to create feed follow")
+	}
+	// Using indexing due to query being marked as :many
+	fmt.Println(feedsFollowRow[0].FeedName, feedsFollowRow[0].UserName)
+
+	return nil
+}
