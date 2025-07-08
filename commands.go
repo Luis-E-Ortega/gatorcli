@@ -160,7 +160,7 @@ func handlerAddfeed(s *state, cmd command) error {
 	return nil
 }
 
-func (c *command) follow(s *state, cmd command) error {
+func (c *commands) follow(s *state, cmd command) error {
 	url := cmd.arguments[1]
 	currentUser := s.cfg.CurrentUserName
 	user, err := s.db.GetUser(context.Background(), currentUser)
