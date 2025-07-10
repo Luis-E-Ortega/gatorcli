@@ -12,6 +12,7 @@ import (
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
 	"github.com/Luis-E-Ortega/gatorcli/internal/database"
 	"github.com/google/uuid"
+	"github.com/pressly/goose/v3"
 )
 
 type state struct {
@@ -78,12 +79,20 @@ func (c *commands) reset(s *state, cmd command) error {
 	// Save the path for migrations
 	const migrationsDir = "./sql/schema"
 
-	//goose.SetDialect("postgres")
-	err := s.db.ResetTables(context.Background())
+	goose.SetDialect("postgres")
+
+	fmt.Println("Running database migrations DOWN...")
+	err := goose.Down(dbConnection, migrationsDir)
 	if err != nil {
-		fmt.Println("Error resetting table")
-		return err
+		return fmt.Errorf("failed to run goose down migrations : %w", err)
 	}
+
+	fmt.Println("Running database migrations UP...")
+	err = goose.Up(dbConnection, migrationsDir)
+	if err != nil {
+		return fmt.Errorf("failed to run goose up migrations: %w", err)
+	}
+
 	fmt.Println("Reset successful!")
 	return nil
 }
@@ -151,27 +160,41 @@ func (c *commands) handlerAddfeed(s *state, cmd command) error {
 		return err
 	}
 
-	userId := user.ID
-
-	feed, err := s.db.CreateFeed(
-		context.Background(),
-		database.CreateFeedParams{
-			ID:        uuid.New(),
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Name:      feedName,
-			Url:       feedUrl,
-			UserID:    userId,
-		},
-	)
+	feed, err := s.db.GetFeedByURL(context.Background(), feedUrl)
 	if err != nil {
-		return err
+		// Check if the error is specifically 'sql.ErrNoRows'
+		if errors.Is(err, sql.ErrNoRows) {
+			// Case 1: Feed does NOT exist
+			// Proceed to create new feed
+			fmt.Println("Feed not found. Creating new feed...")
+
+			feedParams := database.CreateFeedParams{
+				ID:        uuid.New(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				Name:      feedName,
+				Url:       feedUrl,
+				UserID:    user.ID,
+			}
+
+			newFeed, createErr := s.db.CreateFeed(context.Background(), feedParams)
+			if createErr != nil {
+				return fmt.Errorf("failed to create new feed: %w", createErr)
+			}
+			feed = newFeed // Update 'feed' to hold the newly created feed
+		} else {
+			// Case 2: Some other error occurred while trying to get the new feed
+			return fmt.Errorf("error checking for existing feed : %w", err)
+		}
 	}
-	fmt.Println(feed)
+	// Case 3: Feed WAS found (err is nil here)
+	// Proceed to create the feed follow record using 'feed.ID'
+
+	fmt.Printf("Feed '%s' found/created. Proceeding to follow.\n", feed.Name)
 
 	// Creating a "fake" command to have the proper format to call follow from here
 	fakeCmd := command{
-		arguments: []string{"follow_placeholder", feedUrl},
+		arguments: []string{feedUrl},
 	}
 
 	err = c.follow(s, fakeCmd)
@@ -185,7 +208,7 @@ func (c *commands) handlerAddfeed(s *state, cmd command) error {
 func (c *commands) follow(s *state, cmd command) error {
 	// Get user input for url
 	// Have to check if this is the correct index
-	url := cmd.arguments[1]
+	url := cmd.arguments[0]
 	currentUser := s.cfg.CurrentUserName
 	user, err := s.db.GetUser(context.Background(), currentUser)
 	if err != nil {
