@@ -59,6 +59,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	currentState.RawDB = db
+
 	dbQueries := database.New(db)
 	currentState.db = dbQueries
 	if currentState.db == nil {
@@ -75,9 +77,10 @@ func main() {
 	cmds.register("reset", cmds.reset)
 	cmds.register("users", cmds.users)
 	cmds.register("agg", cmds.agg)
-	cmds.register("addfeed", handlerAddfeed)
+	cmds.register("addfeed", cmds.handlerAddfeed)
 	cmds.register("feeds", cmds.feeds)
 	cmds.register("follow", cmds.follow)
+	cmds.register("following", cmds.following)
 
 	userInput := os.Args
 	if len(userInput) < 2 {

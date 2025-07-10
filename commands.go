@@ -15,8 +15,9 @@ import (
 )
 
 type state struct {
-	db  *database.Queries
-	cfg *config.Config
+	db    *database.Queries
+	cfg   *config.Config
+	RawDB *sql.DB
 }
 
 type command struct {
@@ -67,6 +68,17 @@ func (c *commands) register(name string, f func(*state, command) error) {
 }
 
 func (c *commands) reset(s *state, cmd command) error {
+	// Access the raw *sql.DB connection directly from the state
+	dbConnection := s.RawDB
+
+	if dbConnection == nil {
+		return fmt.Errorf("raw database connection in state is nil, cannot run migrations")
+	}
+
+	// Save the path for migrations
+	const migrationsDir = "./sql/schema"
+
+	//goose.SetDialect("postgres")
 	err := s.db.ResetTables(context.Background())
 	if err != nil {
 		fmt.Println("Error resetting table")
@@ -119,7 +131,7 @@ func (c *commands) feeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerAddfeed(s *state, cmd command) error {
+func (c *commands) handlerAddfeed(s *state, cmd command) error {
 	// First check to ensure arguments isn't empty
 	if len(cmd.arguments) < 2 {
 		err := errors.New("name and url required")
@@ -157,10 +169,22 @@ func handlerAddfeed(s *state, cmd command) error {
 	}
 	fmt.Println(feed)
 
+	// Creating a "fake" command to have the proper format to call follow from here
+	fakeCmd := command{
+		arguments: []string{"follow_placeholder", feedUrl},
+	}
+
+	err = c.follow(s, fakeCmd)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (c *commands) follow(s *state, cmd command) error {
+	// Get user input for url
+	// Have to check if this is the correct index
 	url := cmd.arguments[1]
 	currentUser := s.cfg.CurrentUserName
 	user, err := s.db.GetUser(context.Background(), currentUser)
@@ -192,6 +216,25 @@ func (c *commands) follow(s *state, cmd command) error {
 	}
 	// Using indexing due to query being marked as :many
 	fmt.Println(feedsFollowRow[0].FeedName, feedsFollowRow[0].UserName)
+
+	return nil
+}
+
+func (c *commands) following(s *state, cmd command) error {
+	currentUser := s.cfg.CurrentUserName
+	user, err := s.db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return err
+	}
+
+	userID := user.ID
+	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), userID)
+	if err != nil {
+		return err
+	}
+	for _, feed := range feeds {
+		fmt.Println(feed.FeedName)
+	}
 
 	return nil
 }
