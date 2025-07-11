@@ -140,7 +140,7 @@ func (c *commands) feeds(s *state, cmd command) error {
 	return nil
 }
 
-func (c *commands) handlerAddfeed(s *state, cmd command) error {
+func (c *commands) handlerAddfeed(s *state, cmd command, user database.User) error {
 	// First check to ensure arguments isn't empty
 	if len(cmd.arguments) < 2 {
 		err := errors.New("name and url required")
@@ -151,14 +151,6 @@ func (c *commands) handlerAddfeed(s *state, cmd command) error {
 	userInput := cmd.arguments
 	feedName := userInput[0]
 	feedUrl := userInput[1]
-
-	// Retrieve current user and ensure they are registered/logged in
-	currentUser := s.cfg.CurrentUserName
-
-	user, err := s.db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return err
-	}
 
 	feed, err := s.db.GetFeedByURL(context.Background(), feedUrl)
 	if err != nil {
@@ -197,7 +189,7 @@ func (c *commands) handlerAddfeed(s *state, cmd command) error {
 		arguments: []string{feedUrl},
 	}
 
-	err = c.follow(s, fakeCmd)
+	err = c.follow(s, fakeCmd, user)
 	if err != nil {
 		return err
 	}
@@ -205,15 +197,10 @@ func (c *commands) handlerAddfeed(s *state, cmd command) error {
 	return nil
 }
 
-func (c *commands) follow(s *state, cmd command) error {
+func (c *commands) follow(s *state, cmd command, user database.User) error {
 	// Get user input for url
 	// Have to check if this is the correct index
 	url := cmd.arguments[0]
-	currentUser := s.cfg.CurrentUserName
-	user, err := s.db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return err
-	}
 
 	feed, err := s.db.GetFeedByURL(context.Background(), url)
 	if err != nil {
@@ -243,13 +230,7 @@ func (c *commands) follow(s *state, cmd command) error {
 	return nil
 }
 
-func (c *commands) following(s *state, cmd command) error {
-	currentUser := s.cfg.CurrentUserName
-	user, err := s.db.GetUser(context.Background(), currentUser)
-	if err != nil {
-		return err
-	}
-
+func (c *commands) following(s *state, cmd command, user database.User) error {
 	userID := user.ID
 	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), userID)
 	if err != nil {
@@ -260,4 +241,18 @@ func (c *commands) following(s *state, cmd command) error {
 	}
 
 	return nil
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, cmd command) error {
+		currentUser := s.cfg.CurrentUserName
+		if currentUser == "" {
+			return fmt.Errorf("no user logged in")
+		}
+		user, err := s.db.GetUser(context.Background(), currentUser)
+		if err != nil {
+			return err
+		}
+		return handler(s, cmd, user)
+	}
 }

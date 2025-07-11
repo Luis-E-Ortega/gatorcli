@@ -77,10 +77,10 @@ func main() {
 	cmds.register("reset", cmds.reset)
 	cmds.register("users", cmds.users)
 	cmds.register("agg", cmds.agg)
-	cmds.register("addfeed", cmds.handlerAddfeed)
+	cmds.register("addfeed", middlewareLoggedIn(cmds.handlerAddfeed))
 	cmds.register("feeds", cmds.feeds)
-	cmds.register("follow", cmds.follow)
-	cmds.register("following", cmds.following)
+	cmds.register("follow", middlewareLoggedIn(cmds.follow))
+	cmds.register("following", middlewareLoggedIn(cmds.following))
 
 	userInput := os.Args
 	if len(userInput) < 2 {
