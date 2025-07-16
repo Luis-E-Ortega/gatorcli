@@ -230,6 +230,24 @@ func (c *commands) follow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+func (c *commands) unfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.arguments) < 1 {
+		return errors.New("not enough arguments passed into command")
+	}
+	feedURL := cmd.arguments[0]
+	err := s.db.DeleteFeedFollow(
+		context.Background(),
+		database.DeleteFeedFollowParams{
+			UserID: user.ID,
+			Url:    feedURL,
+		})
+	if err != nil {
+		return err
+	}
+	fmt.Println("Feed successfully unfollowed")
+	return nil
+}
+
 func (c *commands) following(s *state, cmd command, user database.User) error {
 	userID := user.ID
 	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), userID)
