@@ -44,6 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize state and config
 	currentState := state{}
 	currentState.cfg = &data
 
@@ -59,6 +60,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Save the open database channel to state
 	currentState.RawDB = db
 
 	dbQueries := database.New(db)
@@ -111,11 +113,12 @@ func handlerRegister(s *state, cmd command) error {
 		return errors.New("name required")
 	}
 
-	params := database.CreateUserParams{}
-	params.Name = cmd.arguments[0]
-	params.ID = uuid.New()
-	params.CreatedAt = time.Now()
-	params.UpdatedAt = time.Now()
+	params := database.CreateUserParams{
+		Name:      cmd.arguments[0],
+		ID:        uuid.New(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
 
 	user, err := s.db.CreateUser(context.Background(), params)
 	if err != nil {

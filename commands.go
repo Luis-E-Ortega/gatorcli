@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -114,13 +113,56 @@ func (c *commands) users(s *state, cmd command) error {
 }
 
 func (c *commands) agg(s *state, cmd command) error {
-	rssFeed, err := fetchFeed(context.Background(), "https://www.wagslane.dev/index.xml")
+	if len(cmd.arguments) < 1 {
+		return errors.New("missing time_between_reqs argument")
+	}
+	time_between_reqs, err := time.ParseDuration(cmd.arguments[0])
 	if err != nil {
 		return err
 	}
 
-	data, _ := json.MarshalIndent(rssFeed, "", " ")
-	fmt.Println(string(data))
+	fmt.Printf("Collecting feeds every %v\n", time_between_reqs)
+	ticker := time.NewTicker(time_between_reqs)
+	defer ticker.Stop()
+
+	for {
+		// Call scrapeFeeds function
+		err := c.scrapeFeeds(s, cmd)
+		if err != nil {
+			fmt.Println("Error scraping feeds:", err)
+		}
+
+		<-ticker.C // wait for next tick
+	}
+}
+
+func (c *commands) scrapeFeeds(s *state, cmd command) error {
+	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	err = s.db.MarkFeedFetched(
+		context.Background(),
+		database.MarkFeedFetchedParams{
+			LastFetchedAt: sql.NullTime{Time: now, Valid: true},
+			UpdatedAt:     now,
+			ID:            nextFeed.ID,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	parsedFeed, err := fetchFeed(context.Background(), nextFeed.Url)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range parsedFeed.Channel.Item {
+		fmt.Println(item.Title)
+	}
 
 	return nil
 }
