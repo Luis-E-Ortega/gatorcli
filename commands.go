@@ -241,7 +241,6 @@ func (c *commands) handlerAddfeed(s *state, cmd command, user database.User) err
 
 func (c *commands) follow(s *state, cmd command, user database.User) error {
 	// Get user input for url
-	// Have to check if this is the correct index
 	url := cmd.arguments[0]
 
 	feed, err := s.db.GetFeedByURL(context.Background(), url)
