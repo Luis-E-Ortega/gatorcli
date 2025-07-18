@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -196,10 +197,38 @@ func (c *commands) scrapeFeeds(s *state) error {
 				}
 			}
 			// For other errors, return or handle
+			log.Printf("failed to create post: %v", err)
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (c *commands) browse(s *state, cmd command, limit int) error {
+	if limit <= 0 {
+		limit = 2 // Default the limit to 2 if not provided
+	}
+	currentUser := s.cfg.CurrentUserName
+	if currentUser == "" {
+		return errors.New("must be logged in to browse posts")
+	}
+	user, err := s.db.GetUser(context.Background(), currentUser)
+	if err != nil {
+		return err
+	}
+	postsList, err := s.db.GetPostsForUser(
+		context.Background(),
+		database.GetPostsForUserParams{
+			UserID: user.ID,
+			Limit:  int32(limit),
+		})
+	if err != nil {
+		return err
+	}
+	for _, post := range postsList {
+		fmt.Printf("Title: %s\nURL: %s\nPublished: %s\n\n", post.Title, post.Url, post.PublishedAt.Format(time.RFC1123))
+	}
 	return nil
 }
 
