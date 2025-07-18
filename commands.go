@@ -11,6 +11,7 @@ import (
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
 	"github.com/Luis-E-Ortega/gatorcli/internal/database"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 )
 
@@ -161,7 +162,42 @@ func (c *commands) scrapeFeeds(s *state) error {
 	}
 
 	for _, item := range parsedFeed.Channel.Item {
-		fmt.Println(item.Title)
+		pubDateStr := item.PubDate
+		layout := time.RFC1123
+
+		// Format publish date to match the variable type in params
+		publishedAt, err := time.Parse(layout, pubDateStr)
+		if err != nil {
+			return err
+		}
+		// Format description to match the variable type in params
+		desc := sql.NullString{
+			String: item.Description,
+			Valid:  item.Description != "",
+		}
+		_, err = s.db.CreatePost(
+			context.Background(),
+			database.CreatePostParams{
+				ID:          uuid.New(),
+				CreatedAt:   time.Now(),
+				UpdatedAt:   time.Now(),
+				Title:       item.Title,
+				Url:         item.Link,
+				Description: desc,
+				PublishedAt: publishedAt,
+				FeedID:      nextFeed.ID,
+			})
+		if err != nil {
+			// This error comes from the pq package(Postgres driver)
+			if pgErr, ok := err.(*pq.Error); ok {
+				if pgErr.Code == "23505" { // unique_violation error code
+					// Means there was a duplicate URL, simply skip
+					continue
+				}
+			}
+			// For other errors, return or handle
+			return err
+		}
 	}
 
 	return nil
