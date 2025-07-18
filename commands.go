@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/Luis-E-Ortega/gatorcli/internal/config"
@@ -205,9 +206,12 @@ func (c *commands) scrapeFeeds(s *state) error {
 	return nil
 }
 
-func (c *commands) browse(s *state, cmd command, limit int) error {
-	if limit <= 0 {
-		limit = 2 // Default the limit to 2 if not provided
+func (c *commands) browse(s *state, cmd command) error {
+	limit := 2 // Set default limit
+	if len(cmd.arguments) > 0 {
+		if parsed, err := strconv.Atoi(cmd.arguments[0]); err == nil && parsed > 0 {
+			limit = parsed
+		}
 	}
 	currentUser := s.cfg.CurrentUserName
 	if currentUser == "" {
