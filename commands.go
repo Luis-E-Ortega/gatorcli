@@ -127,7 +127,7 @@ func (c *commands) agg(s *state, cmd command) error {
 
 	for {
 		// Call scrapeFeeds function
-		err := c.scrapeFeeds(s, cmd)
+		err := c.scrapeFeeds(s)
 		if err != nil {
 			fmt.Println("Error scraping feeds:", err)
 		}
@@ -136,7 +136,7 @@ func (c *commands) agg(s *state, cmd command) error {
 	}
 }
 
-func (c *commands) scrapeFeeds(s *state, cmd command) error {
+func (c *commands) scrapeFeeds(s *state) error {
 	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
 		return err
