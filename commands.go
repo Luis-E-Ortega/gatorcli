@@ -32,6 +32,7 @@ type commands struct {
 	allCommands map[string]func(*state, command) error
 }
 
+// Used to login as a specific user
 func handlerLogin(s *state, cmd command) error {
 	// First check to ensure arguments isn't empty
 	if len(cmd.arguments) < 1 {
@@ -55,6 +56,7 @@ func handlerLogin(s *state, cmd command) error {
 	return nil
 }
 
+// Dispatches the requested CLI command by looking up its handler and executing it
 func (c *commands) run(s *state, cmd command) error {
 	if inputCommand, ok := c.allCommands[cmd.name]; ok {
 		err := inputCommand(s, cmd)
@@ -62,14 +64,19 @@ func (c *commands) run(s *state, cmd command) error {
 			fmt.Printf("Error running run method: %v", err)
 			return err
 		}
+	} else {
+		fmt.Printf("Unknown command : %s\n", cmd.name)
+		return fmt.Errorf("unkown command: %s", cmd.name)
 	}
 	return nil
 }
 
+// Used to register a new user
 func (c *commands) register(name string, f func(*state, command) error) {
 	c.allCommands[name] = f
 }
 
+// Resets the database, running goose migrations down and up
 func (c *commands) reset(s *state, cmd command) error {
 	// Access the raw *sql.DB connection directly from the state
 	dbConnection := s.RawDB
@@ -99,6 +106,7 @@ func (c *commands) reset(s *state, cmd command) error {
 	return nil
 }
 
+// Displays a list of all registered users
 func (c *commands) users(s *state, cmd command) error {
 	usersList, err := s.db.GetUsers(context.Background())
 	if err != nil {
@@ -115,6 +123,7 @@ func (c *commands) users(s *state, cmd command) error {
 	return nil
 }
 
+// Continuously running program to check for (and apply) updates to feeds at a given interval
 func (c *commands) agg(s *state, cmd command) error {
 	if len(cmd.arguments) < 1 {
 		return errors.New("missing time_between_reqs argument")
@@ -139,6 +148,7 @@ func (c *commands) agg(s *state, cmd command) error {
 	}
 }
 
+// Used by agg to fetch feeds and keep database updated while running
 func (c *commands) scrapeFeeds(s *state) error {
 	nextFeed, err := s.db.GetNextFeedToFetch(context.Background())
 	if err != nil {
@@ -206,6 +216,7 @@ func (c *commands) scrapeFeeds(s *state) error {
 	return nil
 }
 
+// Displays info on followed posts, optional limit for how many to display at once
 func (c *commands) browse(s *state, cmd command) error {
 	limit := 2 // Set default limit
 	if len(cmd.arguments) > 0 {
@@ -236,6 +247,7 @@ func (c *commands) browse(s *state, cmd command) error {
 	return nil
 }
 
+// Shows all of the feeds information across users
 func (c *commands) feeds(s *state, cmd command) error {
 	feeds, err := s.db.GetFeeds(context.Background())
 	if err != nil {
@@ -245,12 +257,14 @@ func (c *commands) feeds(s *state, cmd command) error {
 
 	if len(feeds) != 0 {
 		for _, row := range feeds {
-			fmt.Printf("Feed Information: \n Name: %v\n URL: %v\n Username: %v", row.Name, row.Url, row.Username)
+			fmt.Printf("Feed Information: \n Name: %v\n URL: %v\n Username: %v\n", row.Name, row.Url, row.Username)
 		}
 	}
 	return nil
 }
 
+// Used to add a feed to our program that users can then follow after
+// (automatically follows the feed  on command run for the current logged in user)
 func (c *commands) handlerAddfeed(s *state, cmd command, user database.User) error {
 	// First check to ensure arguments isn't empty
 	if len(cmd.arguments) < 2 {
@@ -308,6 +322,7 @@ func (c *commands) handlerAddfeed(s *state, cmd command, user database.User) err
 	return nil
 }
 
+// Follows a feed specifically for the logged in user
 func (c *commands) follow(s *state, cmd command, user database.User) error {
 	// Get user input for url
 	url := cmd.arguments[0]
@@ -340,6 +355,7 @@ func (c *commands) follow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+// Used to unfollow a feed
 func (c *commands) unfollow(s *state, cmd command, user database.User) error {
 	if len(cmd.arguments) < 1 {
 		return errors.New("not enough arguments passed into command")
@@ -351,6 +367,7 @@ func (c *commands) unfollow(s *state, cmd command, user database.User) error {
 			UserID: user.ID,
 			Url:    feedURL,
 		})
+
 	if err != nil {
 		return err
 	}
@@ -358,6 +375,7 @@ func (c *commands) unfollow(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+// Shows list of all feeds followed by user
 func (c *commands) following(s *state, cmd command, user database.User) error {
 	userID := user.ID
 	feeds, err := s.db.GetFeedFollowsForUser(context.Background(), userID)
@@ -371,6 +389,7 @@ func (c *commands) following(s *state, cmd command, user database.User) error {
 	return nil
 }
 
+// Wrapper function used to authenticate login information
 func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
 	return func(s *state, cmd command) error {
 		currentUser := s.cfg.CurrentUserName
